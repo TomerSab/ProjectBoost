@@ -8,42 +8,93 @@ public class Rocket : MonoBehaviour
 {
     [SerializeField]float rotatBoost = 100f;
     [SerializeField]float mainBoost = 100f;
-    Rigidbody rigidBody;
-    AudioSource boostAudio;
+    [SerializeField] float levelLoadDelay = 2f;
 
+    [SerializeField] AudioClip mainEngine;
+    [SerializeField] AudioClip deathSound;
+    [SerializeField] AudioClip WiningSound;
+
+
+    [SerializeField] ParticleSystem enginePartical1;
+    [SerializeField] ParticleSystem enginePartical2;
+    [SerializeField] ParticleSystem deathPrtical;
+    [SerializeField] ParticleSystem winingPartical;
+
+    enum State { Alive,Dying,Transending};
+    State state = State.Alive;
+    Rigidbody rigidBody;
+    AudioSource rocketSounds;
+
+    bool colisFlag = true;
     // Start is called before the first frame update
     void Start()
     {
+
         rigidBody = GetComponent<Rigidbody>();
-        boostAudio = GetComponent<AudioSource>();
-    }
+        rocketSounds = GetComponent<AudioSource>();
+           }
 
     // Update is called once per frame
     void Update()
     {
-        ProcessInput();
+        if (state == State.Alive)
+        {
+            RespondToBoostInput();
+            RespondToRotateInput();
+            
+        }
+        //Debug on off
+        if (Debug.isDebugBuild)
+        {
+            DebugAndTestingOptions();
+        }
     }
 
-    private void ProcessInput()
+    private void DebugAndTestingOptions()
     {
-        Booosting();
-        Rotate();
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            Debug.Log("L Pressed - Next Level");
+            LoadNextLevel();
+        }
+        else if (Input.GetKeyDown(KeyCode.C))
+        {
+            colisFlag = !colisFlag;
+          
+            Debug.Log("C Pressed - Avoid Colisions");
+              
+        }
     }
 
-    private void Booosting()
+    private void RespondToBoostInput()
     {
         if (Input.GetKey(KeyCode.Space))
         {
-
-            rigidBody.AddRelativeForce(Vector3.up * mainBoost);
-            if (!boostAudio.isPlaying)
-            {
-                boostAudio.Play();
-            }
+            ApplyBoost();
         }
-        else boostAudio.Stop();
+        else
+        {
+            rocketSounds.Stop();
+            enginePartical1.Stop();
+            enginePartical2.Stop();
+        }
+
+        }
+
+    private void ApplyBoost()
+    {
+        rigidBody.AddRelativeForce(Vector3.up * mainBoost);
+        if (!rocketSounds.isPlaying)
+        {
+            rocketSounds.PlayOneShot(mainEngine);
+            enginePartical1.Play();
+            enginePartical2.Play();
+        }
+
+
     }
-    private void Rotate()
+
+    private void RespondToRotateInput()
     {
         rigidBody.freezeRotation = true; // Take  Manual Control
 
@@ -65,18 +116,56 @@ public class Rocket : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        if (state != State.Alive || !colisFlag) { return; }
+
         switch (collision.gameObject.tag)
         {
             case "Friendly":
                 break;
             case "Finish":
-                print("Hit Finish");//TODO Remove
-                SceneManager.LoadScene(1);
+                StartWiningSeq();
                 break;
             default:
-                print("Dead");
-                SceneManager.LoadScene(0);
+                StartDyingSeq();
                 break;
         }
+    }
+
+    private void StartWiningSeq()
+    {
+        state = State.Transending;
+        rocketSounds.Stop();
+        rocketSounds.PlayOneShot(WiningSound);
+        print("Won Level");
+        winingPartical.Play();
+        Invoke("LoadNextLevel", levelLoadDelay);
+    }
+
+    private void StartDyingSeq()
+    {
+        
+        state = State.Dying;
+        rocketSounds.Stop();
+        rocketSounds.PlayOneShot(deathSound);
+        print("hit Something");
+        deathPrtical.Play();
+        Invoke("LoadFirstLevel", levelLoadDelay);
+    }
+    
+    private void LoadNextLevel()
+    {
+        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIndex = currentSceneIndex + 1;
+
+        if (currentSceneIndex == SceneManager.sceneCountInBuildSettings-1) {
+            nextSceneIndex = 0;
+        }
+            SceneManager.LoadScene(nextSceneIndex);
+    }
+
+    private void LoadFirstLevel()
+    {
+
+        SceneManager.LoadScene(0);
     }
 }
