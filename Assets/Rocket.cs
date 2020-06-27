@@ -20,8 +20,7 @@ public class Rocket : MonoBehaviour
     [SerializeField] ParticleSystem deathPrtical;
     [SerializeField] ParticleSystem winingPartical;
 
-    enum State { Alive,Dying,Transending};
-    State state = State.Alive;
+    bool isTransitioning = false;
     Rigidbody rigidBody;
     AudioSource rocketSounds;
 
@@ -37,7 +36,7 @@ public class Rocket : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (state == State.Alive)
+        if (!isTransitioning)
         {
             RespondToBoostInput();
             RespondToRotateInput();
@@ -86,17 +85,22 @@ public class Rocket : MonoBehaviour
         rigidBody.AddRelativeForce(Vector3.up * mainBoost);
         if (!rocketSounds.isPlaying)
         {
-            rocketSounds.PlayOneShot(mainEngine);
-            enginePartical1.Play();
-            enginePartical2.Play();
+            StopApplyBoost();
         }
 
 
     }
 
+    private void StopApplyBoost()
+    {
+        rocketSounds.PlayOneShot(mainEngine);
+        enginePartical1.Play();
+        enginePartical2.Play();
+    }
+
     private void RespondToRotateInput()
     {
-        rigidBody.freezeRotation = true; // Take  Manual Control
+        rigidBody.angularVelocity = Vector3.zero; // Take  Manual Control
 
         
         float rotationsThisFrame = rotatBoost * Time.deltaTime;
@@ -111,12 +115,12 @@ public class Rocket : MonoBehaviour
             transform.Rotate(-Vector3.forward* rotationsThisFrame);
         }
 
-        rigidBody.freezeRotation = false; // Take  Manual Control
+        
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (state != State.Alive || !colisFlag) { return; }
+        if (isTransitioning || !colisFlag) { return; }
 
         switch (collision.gameObject.tag)
         {
@@ -133,7 +137,7 @@ public class Rocket : MonoBehaviour
 
     private void StartWiningSeq()
     {
-        state = State.Transending;
+        isTransitioning = true;
         rocketSounds.Stop();
         rocketSounds.PlayOneShot(WiningSound);
         print("Won Level");
@@ -143,8 +147,8 @@ public class Rocket : MonoBehaviour
 
     private void StartDyingSeq()
     {
-        
-        state = State.Dying;
+
+        isTransitioning = true;
         rocketSounds.Stop();
         rocketSounds.PlayOneShot(deathSound);
         print("hit Something");
